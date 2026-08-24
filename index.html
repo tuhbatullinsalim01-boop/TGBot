@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flow FC</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
+        body { background: #0a0a1a; color: #f0f0f0; min-height: 100vh; padding-bottom: 80px; }
+        .container { max-width: 480px; margin: 0 auto; padding: 16px; }
+        .gold { color: #fbbf24; }
+        .gold-bg { background: #fbbf24; color: #0a0a1a; }
+        .card-bg { background: #16162e; border-radius: 16px; padding: 16px; margin-bottom: 12px; }
+        .btn { display: inline-block; padding: 10px 20px; border: none; border-radius: 12px; font-weight: 700; font-size: 14px; cursor: pointer; transition: 0.2s; text-align: center; background: #2a2a4a; color: #ccc; }
+        .btn:active { transform: scale(0.96); }
+        .btn-gold { background: #fbbf24; color: #0a0a1a; }
+        .btn-red { background: #e63946; color: #fff; }
+        .btn-green { background: #2ecc40; color: #fff; }
+        .flex-between { display: flex; justify-content: space-between; align-items: center; }
+        .flex-center { display: flex; align-items: center; gap: 8px; }
+        .text-center { text-align: center; }
+        .mt-2 { margin-top: 8px; }
+        .mb-2 { margin-bottom: 8px; }
+        .nav { position: fixed; bottom: 0; left: 0; right: 0; background: #0f0f1f; border-top: 1px solid #2a2a4a; display: flex; justify-content: space-around; padding: 8px 0 12px; max-width: 480px; margin: 0 auto; z-index: 100; }
+        .nav button { background: none; border: none; color: #6b7280; display: flex; flex-direction: column; align-items: center; font-size: 10px; gap: 2px; padding: 4px 8px; cursor: pointer; }
+        .nav button.active { color: #fbbf24; }
+        .screen { display: none; }
+        .screen.active { display: block; }
+        .player-card { background: linear-gradient(145deg, #1e1e3e, #14142a); border-radius: 14px; padding: 12px; border: 2px solid #2a2a4a; margin-bottom: 8px; }
+        .rarity-legendary { border-color: #fbbf24; box-shadow: 0 0 20px rgba(251, 191, 36, 0.2); }
+        .rarity-epic { border-color: #a78bfa; }
+        .rarity-rare { border-color: #60a5fa; }
+        .rarity-common { border-color: #6b7280; }
+        .progress-bar { width: 100%; height: 6px; background: #2a2a4a; border-radius: 4px; overflow: hidden; margin-top: 4px; }
+        .progress-bar .fill { height: 100%; background: #fbbf24; border-radius: 4px; transition: width 0.4s; }
+        .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 200; padding: 20px; }
+        .modal.open { display: flex; }
+        .modal-box { background: #1a1a32; border-radius: 24px; max-width: 400px; width: 100%; padding: 24px; max-height: 90vh; overflow-y: auto; animation: modalIn 0.3s ease; }
+        @keyframes modalIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .modal-close { float: right; background: none; border: none; color: #9ca3af; font-size: 24px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="container" id="app">
+        <!-- Главный экран -->
+        <div class="screen active" id="home">
+            <div class="flex-between mb-2">
+                <div>
+                    <h2 style="font-size:22px;">Привет, <span id="username">Игрок</span>!</h2>
+                    <p class="text-sm" style="opacity:0.6;">Продолжим коллекционировать?</p>
+                </div>
+                <div class="flex-center">
+                    <span class="gold-bg" style="padding:4px 12px;border-radius:20px;font-weight:700;font-size:13px;">🪙 <span id="balance">0</span></span>
+                </div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;background:#12122a;border-radius:14px;padding:12px;margin-bottom:12px;">
+                <div class="text-center"><div style="font-size:20px;font-weight:700;color:#fbbf24;" id="totalCards">0</div><div class="text-xs" style="opacity:0.6;">Всего</div></div>
+                <div class="text-center"><div style="font-size:20px;font-weight:700;color:#60a5fa;" id="uniqueCards">0</div><div class="text-xs" style="opacity:0.6;">Уникальных</div></div>
+                <div class="text-center"><div style="font-size:20px;font-weight:700;color:#22c55e;" id="packsOpened">0</div><div class="text-xs" style="opacity:0.6;">Паков</div></div>
+                <div class="text-center"><div style="font-size:20px;font-weight:700;color:#a78bfa;" id="rank">#1</div><div class="text-xs" style="opacity:0.6;">Рейтинг</div></div>
+            </div>
+            <div class="card-bg">
+                <div class="flex-between"><span>🎁 Бесплатный пак</span><span class="text-sm" style="opacity:0.6;" id="freePackTimer">Готов!</span></div>
+                <button class="btn btn-gold w-full mt-2" style="width:100%;" id="freePackBtn">Открыть</button>
+            </div>
+            <div class="card-bg">
+                <div class="flex-between"><span>🎡 Колесо фортуны</span><span class="text-sm" style="opacity:0.6;" id="spinsLeft">Осталось: 3</span></div>
+                <button class="btn btn-red w-full mt-2" style="width:100%;" id="spinBtn">Крутить</button>
+            </div>
+        </div>
+
+        <!-- Паки -->
+        <div class="screen" id="packs">
+            <h2 style="font-size:22px;font-weight:700;margin-bottom:8px;">📦 Паки</h2>
+            <div id="packList"></div>
+        </div>
+
+        <!-- Карточки -->
+        <div class="screen" id="cards">
+            <h2 style="font-size:22px;font-weight:700;margin-bottom:8px;">🃏 Карточки</h2>
+            <div id="cardList"></div>
+        </div>
+
+        <!-- Профиль -->
+        <div class="screen" id="profile">
+            <h2 style="font-size:22px;font-weight:700;margin-bottom:8px;">👤 Профиль</h2>
+            <div id="profileInfo"></div>
+        </div>
+    </div>
+
+    <!-- Навигация -->
+    <nav class="nav">
+        <button class="active" data-screen="home">🏠 Главная</button>
+        <button data-screen="packs">📦 Паки</button>
+        <button data-screen="cards">🃏 Карты</button>
+        <button data-screen="profile">👤 Профиль</button>
+    </nav>
+
+    <!-- Модалка для открытия пака -->
+    <div class="modal" id="packModal">
+        <div class="modal-box">
+            <button class="modal-close" id="packModalClose">✕</button>
+            <div class="text-center">
+                <div style="font-size:48px;margin-bottom:4px;" id="packModalEmoji">🎉</div>
+                <div style="font-size:22px;font-weight:700;" id="packModalTitle">Новая карта!</div>
+                <div style="font-size:14px;opacity:0.6;" id="packModalDesc"></div>
+                <div style="font-size:32px;font-weight:800;color:#fbbf24;margin:8px 0;" id="packModalOvr"></div>
+                <button class="btn btn-gold mt-2" id="packModalBtn">Отлично!</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+
+        let userData = {
+            balance: 100,
+            cards: [],
+            packsOpened: 0
+        };
+
+        // ========== Данные ==========
+        const CARDS = [
+            { name: "Килиан Мбаппе", club: "Реал Мадрид", ovr: 95, rarity: "legendary" },
+            { name: "Виктор Дьокереш", club: "Арсенал", ovr: 89, rarity: "epic" },
+            { name: "Эрлинг Холанд", club: "Ман Сити", ovr: 93, rarity: "legendary" },
+            { name: "Антонио Рюдигер", club: "Реал Мадрид", ovr: 85, rarity: "rare" },
+            { name: "Кэнто Шиога", club: "Вольфсбург", ovr: 83, rarity: "rare" },
+            { name: "Артём Дзюба", club: "Локомотив", ovr: 78, rarity: "common" },
+            { name: "Криштиану Роналду", club: "Аль-Наср", ovr: 92, rarity: "legendary" },
+            { name: "Лионель Месси", club: "Интер Майами", ovr: 91, rarity: "legendary" },
+            { name: "Джуд Беллингем", club: "Реал Мадрид", ovr: 88, rarity: "epic" },
+            { name: "Ламин Ямаль", club: "Барселона", ovr: 85, rarity: "epic" },
+        ];
+
+        const PACKS = {
+            basic: { price: 120, label: "Basic Pack", chances: { common: 70, rare: 27, epic: 3, legendary: 0 } },
+            premium: { price: 300, label: "Premium Pack", chances: { common: 50, rare: 44, epic: 5, legendary: 1 } },
+            elite: { price: 600, label: "Elite Pack", chances: { common: 30, rare: 59, epic: 9, legendary: 2 } },
+            legendary: { price: 1100, label: "Легендарный пак", chances: { common: 0, rare: 56, epic: 39, legendary: 5 } }
+        };
+
+        // ========== UI Функции ==========
+        function updateUI() {
+            document.getElementById('balance').textContent = userData.balance;
+            document.getElementById('totalCards').textContent = userData.cards.length;
+            document.getElementById('uniqueCards').textContent = new Set(userData.cards.map(c => c.name)).size;
+            document.getElementById('packsOpened').textContent = userData.packsOpened;
+            document.getElementById('rank').textContent = '#' + (userData.packsOpened + 1);
+        }
+
+        function renderCards() {
+            const container = document.getElementById('cardList');
+            if (userData.cards.length === 0) {
+                container.innerHTML = '<p style="opacity:0.6;">У тебя пока нет карточек. Открой паки!</p>';
+                return;
+            }
+            container.innerHTML = userData.cards.map(c => `
+                <div class="player-card rarity-${c.rarity}">
+                    <div class="flex-between">
+                        <span style="font-size:14px;font-weight:700;">${c.name}</span>
+                        <span style="font-size:12px;opacity:0.6;">${c.club}</span>
+                    </div>
+                    <div class="flex-between">
+                        <span>OVR <strong>${c.ovr}</strong></span>
+                        <span style="font-size:12px;text-transform:uppercase;opacity:0.6;">${c.rarity}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderProfile() {
+            const unique = new Set(userData.cards.map(c => c.name)).size;
+            document.getElementById('profileInfo').innerHTML = `
+                <div class="card-bg">
+                    <p><strong>💰 Баланс:</strong> ${userData.balance} монет</p>
+                    <p><strong>🃏 Карточек:</strong> ${userData.cards.length}</p>
+                    <p><strong>⭐ Уникальных:</strong> ${unique}</p>
+                    <p><strong>📦 Паков открыто:</strong> ${userData.packsOpened}</p>
+                    <p><strong>📊 Рейтинг:</strong> #${userData.packsOpened + 1}</p>
+                </div>
+                <div class="card-bg mt-2">
+                    <p><strong>🔗 Реферальная ссылка:</strong></p>
+                    <p style="font-size:12px;word-break:break-all;opacity:0.6;">https://t.me/YOUR_BOT?start=123</p>
+                </div>
+            `;
+        }
+
+        function renderPacks() {
+            const container = document.getElementById('packList');
+            container.innerHTML = Object.entries(PACKS).map(([key, pack]) => `
+                <div class="card-bg flex-between">
+                    <div>
+                        <div style="font-weight:700;">${pack.label}</div>
+                        <div style="font-size:13px;opacity:0.6;">${pack.price} монет</div>
+                    </div>
+                    <button class="btn btn-gold" onclick="openPack('${key}')">Открыть</button>
+                </div>
+            `).join('');
+        }
+
+        function openPack(key) {
+            const pack = PACKS[key];
+            if (userData.balance < pack.price) {
+                tg.showAlert('Недостаточно монет!');
+                return;
+            }
+
+            userData.balance -= pack.price;
+            userData.packsOpened += 1;
+
+            // Рандомная карта
+            const roll = Math.random() * 100;
+            let rarity = 'common';
+            let cum = 0;
+            for (const [r, chance] of Object.entries(pack.chances)) {
+                cum += chance;
+                if (roll < cum) { rarity = r; break; }
+            }
+            const possible = CARDS.filter(c => c.rarity === rarity);
+            const card = possible.length ? possible[Math.floor(Math.random() * possible.length)] : CARDS[0];
+            userData.cards.push(card);
+
+            updateUI();
+            renderCards();
+            renderPacks();
+            renderProfile();
+
+            // Показываем модалку
+            const modal = document.getElementById('packModal');
+            document.getElementById('packModalEmoji').textContent = card.rarity === 'legendary' ? '👑' : card.rarity === 'epic' ? '⭐' : card.rarity === 'rare' ? '✦' : '●';
+            document.getElementById('packModalTitle').textContent = card.name;
+            document.getElementById('packModalDesc').textContent = `${card.club} • ${card.rarity.toUpperCase()}`;
+            document.getElementById('packModalOvr').textContent = card.ovr;
+            modal.classList.add('open');
+        }
+
+        // ========== Навигация ==========
+        document.querySelectorAll('.nav button').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+                document.getElementById(btn.dataset.screen).classList.add('active');
+            });
+        });
+
+        // ========== Модалка ==========
+        document.getElementById('packModalClose').addEventListener('click', () => {
+            document.getElementById('packModal').classList.remove('open');
+        });
+        document.getElementById('packModalBtn').addEventListener('click', () => {
+            document.getElementById('packModal').classList.remove('open');
+        });
+
+        // ========== Инициализация ==========
+        // Для теста добавим стартовые карты
+        userData.cards = [
+            { name: "Килиан Мбаппе", club: "Реал Мадрид", ovr: 95, rarity: "legendary" },
+            { name: "Артём Дзюба", club: "Локомотив", ovr: 78, rarity: "common" },
+        ];
+        userData.packsOpened = 2;
+
+        updateUI();
+        renderCards();
+        renderPacks();
+        renderProfile();
+
+        // Подключение к Telegram
+        if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+            document.getElementById('username').textContent = tg.initDataUnsafe.user.first_name || 'Игрок';
+        }
+
+        // Получение данных от бота (если есть)
+        tg.onEvent('mainButtonClicked', () => {});
+        tg.ready();
+    </script>
+</body>
+</html>
